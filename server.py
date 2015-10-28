@@ -2,26 +2,16 @@ __author__ = 'Derek Argueta'
 __email__ = 'darguetap@gmail.com'
 
 
-import debug
+from debug import debug_print
 import errno
 import select
 import socket
 import sys
 import traceback
 
-from response import Response
+from request import RequestParser
+from response import HttpResponse, HttpResponseNotImplemented
 from http_consts import SUPPORTED_METHODS
-
-
-def valid_request(message):
-	try:
-		from http_parser.parser import HttpParser
-	except ImportError:
-		from http_parser.pyparser import HttpParser
-
-	p = HttpParser()
-	nparsed = p.execute(message, len(message))
-	return p.get_method() in SUPPORTED_METHODS
 
 
 class Server(object):
@@ -70,7 +60,6 @@ class Server(object):
 
 	def handle_error(self, file_descriptor):
 
-		debug.debug_print('aaaayyy hit an error lmaaaoooo')
 		self.poller.unregister(file_descriptor)
 		if file_descriptor == self.server.fileno():
 			# recreate the socket
@@ -100,13 +89,6 @@ class Server(object):
 			self.poller.register(client.fileno(), self.pollmask)
 
 	def handle_client(self, file_descriptor):
-		"""
-			TODO - handling process
-			1) check request - if bad return 400
-			2) validate GET type - if no return 501
-			3) check file existence - if no return 404
-			4) check file permissions - if no return 403
-		"""
 		try:
 			data = self.clients[file_descriptor].recv(self.size)
 		except socket.error, (value, msg):
@@ -116,17 +98,15 @@ class Server(object):
 			print(traceback.format_exc())
 			sys.exit()
 
+		debug_print('sent data:')
+		debug_print(data)
+
 		if data:
-			with open('requirements.txt') as f:
-				if valid_request(data):
-					self.clients[file_descriptor].send(Response().get_response_str())
-					self.clients[file_descriptor].send('asdfasdf')
-				else:
-					with open('pages/501.html') as cont:
-						content = cont.read()
-						r = Response(status=501, content=content, f_type='text/html')
-						self.clients[file_descriptor].send(r.get_response_str())
-						self.clients[file_descriptor].send(content)
+
+			rp = RequestParser(data)
+			resp = rp.get_appropriate_response()
+			self.clients[file_descriptor].send(str(resp))
+			self.clients[file_descriptor].send(resp.content)
 		else:
 			self.poller.unregister(file_descriptor)
 			self.clients[file_descriptor].close()

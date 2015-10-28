@@ -1,3 +1,6 @@
+__author__ = 'Derek Argueta'
+__email__ = 'darguetap@gmail.com'
+
 from wsgiref.handlers import format_date_time
 from datetime import datetime
 import debug
@@ -5,20 +8,25 @@ from time import mktime
 from http_consts import STATUS_MSG_MAP
 
 
-class Response():
+class HttpResponse(object):
 
-	def __init__(self, status=200, content='asdfasdf', f_type='text'):
+	status_code = 200
+
+	def __init__(self, status=None, content_f='pages/index.html', f_type='text/plain'):
 		now = datetime.now()
 		stamp = mktime(now.timetuple())
 
-		self.status_code = status
+		if status is not None:
+			self.status_code = status
 		self.server = 'DrekSwerver (Mint)'
 		self.date = format_date_time(stamp)
 		self.content_type = f_type
-		self.content_length = len(content)
+		with open(content_f) as f:
+			self.content = f.read()
+		self.content_length = len(self.content)
 		self.last_modified = None
 
-	def get_response_str(self):
+	def __str__(self):
 		protocol_string = 'HTTP/1.1 %i %s' % (self.status_code, STATUS_MSG_MAP[self.status_code])
 		server_string = 'Server: %s' % self.server
 		date_string = 'Date: %s' % self.date
@@ -34,3 +42,23 @@ class Response():
 
 		main_str += '\r\n'
 		return main_str
+
+
+class HttpResponseBadRequest(HttpResponse):
+	status_code = 400
+
+
+class HttpResponseForbidden(HttpResponse):
+	status_code = 403
+
+
+class HttpResponseNotFound(HttpResponse):
+	status_code = 404
+
+
+class HttpResponseServerError(HttpResponse):
+	status_code = 500
+
+
+class HttpResponseNotImplemented(HttpResponse):
+	status_code = 501

@@ -1,3 +1,6 @@
+__author__ = 'Derek Argueta'
+__email__ = 'darguetap@gmail.com'
+
 SUPPORTED_METHODS = ['GET']
 
 STATUS_MSG_MAP = {
