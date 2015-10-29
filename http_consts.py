@@ -1,10 +1,11 @@
 __author__ = 'Derek Argueta'
 __email__ = 'darguetap@gmail.com'
 
-SUPPORTED_METHODS = ['GET']
+SUPPORTED_METHODS = ['GET', 'HEAD']
 
 STATUS_MSG_MAP = {
 	200: 'GET',
+	206: 'Partial Content',
 	400: 'Bad Request',
 	403: 'Forbidden',
 	404: 'Not Found',

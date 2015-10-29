@@ -2,9 +2,11 @@ __author__ = 'Derek Argueta'
 __email__ = 'darguetap@gmail.com'
 
 
+from datetime import datetime
 from debug import debug_print
 import errno
 import select
+import settings
 import socket
 import sys
 import traceback
@@ -21,6 +23,9 @@ class Server(object):
 		self.port = port
 		self.open_socket()
 		self.clients = {}
+		self.caches = {}  # cache per client
+		self.socket_timing = {}  # to keep track of timing out
+		timeout_check = (None, None)
 		self.size = 1024
 
 	def open_socket(self):
@@ -39,6 +44,24 @@ class Server(object):
 			print('Could not open socket: %s' % message)
 			sys.exit(1)
 
+	def _check_timeout(self):
+		"""
+			This function will loop over sockets and check if any sockets
+			are overdue to be timed out. Timed out sockets are killed using
+			_shutdown_socket
+		"""
+		bad = []  # we can't mod the dictionary while iterating, so keep track of
+				  # sockets to kill in this `bad` list
+		for k, v in self.socket_timing.iteritems():
+			current_time = datetime.now()
+			if int((current_time-v).total_seconds()) > int(settings.TIMEOUT):
+				# socket timeout, kill it
+				bad.append(k)
+
+		# kill any sockets that should timeout
+		for socket in bad:
+			self._shutdown_socket(socket)
+
 	def run(self):
 		self.poller = select.epoll()
 		self.pollmask = select.EPOLLIN | select.EPOLLHUP | select.EPOLLERR
@@ -49,7 +72,10 @@ class Server(object):
 				fds = self.poller.poll(timeout=1)
 			except:
 				return
+
 			for file_descriptor, event in fds:
+				if file_descriptor in self.socket_timing:
+					self.socket_timing[file_descriptor] = datetime.now()
 				if event & (select.POLLHUP | select.POLLERR):
 					self.handle_error(file_descriptor)
 					continue
@@ -57,6 +83,7 @@ class Server(object):
 					self.handle_server()
 					continue
 				result = self.handle_client(file_descriptor)
+			self._check_timeout()
 
 	def handle_error(self, file_descriptor):
 
@@ -86,6 +113,7 @@ class Server(object):
 			# set client to be non-blocking
 			client.setblocking(0)
 			self.clients[client.fileno()] = client
+			self.socket_timing[client.fileno()] = datetime.now()
 			self.poller.register(client.fileno(), self.pollmask)
 
 	def handle_client(self, file_descriptor):
@@ -98,16 +126,44 @@ class Server(object):
 			print(traceback.format_exc())
 			sys.exit()
 
-		debug_print('sent data:')
-		debug_print(data)
+		# not a complete HTTP request
+		if not data.endswith('\r\n\r\n'):
+			if data == '':
+				self._shutdown_socket(file_descriptor)
+			if file_descriptor in self.caches:
+				self.caches[file_descriptor] += data
+			else:
+				self.caches[file_descriptor] = data
+			return
 
 		if data:
 
+			# check if there's any cached data we can use
+			# for this file descriptor
+			if file_descriptor in self.caches:
+				data = self.caches[file_descriptor] + data
+				del self.caches[file_descriptor]
+			
 			rp = RequestParser(data)
 			resp = rp.get_appropriate_response()
+
+			# send all the HTTP headers
 			self.clients[file_descriptor].send(str(resp))
-			self.clients[file_descriptor].send(resp.content)
-		else:
-			self.poller.unregister(file_descriptor)
+
+			# send the file that was requested
+			if resp.method == 'GET':
+				self.clients[file_descriptor].send(resp.content)
+		# else:
+		# 	print('do I ever get called?')
+		# 	self.poller.unregister(file_descriptor)
+		# 	self.clients[file_descriptor].close()
+		# 	del self.clients[file_descriptor]
+
+	def _shutdown_socket(self, file_descriptor):
+		del self.socket_timing[file_descriptor]
+		self.poller.unregister(file_descriptor)
+		if file_descriptor in self.clients:
 			self.clients[file_descriptor].close()
 			del self.clients[file_descriptor]
+		else:
+			debug_print('tried to close a socket that was not in clients: %i' % file_descriptor)

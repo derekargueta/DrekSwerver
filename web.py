@@ -2,8 +2,14 @@ __author__ = 'Derek Argueta'
 __email__ = 'darguetap@gmail.com'
 
 import argparse
+from conf_reader import ConfParser
 import debug
 from server import Server
+import settings
+
+"""
+	Main server runner
+"""
 
 
 class Main(object):
@@ -24,6 +30,13 @@ class Main(object):
 
 
 if __name__ == '__main__':
+
+	# read in configuration
+	tmp_settings = ConfParser().read_configuration()
+	settings.HOSTS = tmp_settings['hosts']
+	settings.MEDIA = tmp_settings['media']
+	settings.TIMEOUT = tmp_settings['parameters']['timeout']
+	
 	m = Main()
 	try:
 		m.run()
