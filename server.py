@@ -126,38 +126,39 @@ class Server(object):
 			print(traceback.format_exc())
 			sys.exit()
 
-		# not a complete HTTP request
-		if not data.endswith('\r\n\r\n'):
-			if data == '':
-				self._shutdown_socket(file_descriptor)
-			if file_descriptor in self.caches:
-				self.caches[file_descriptor] += data
-			else:
-				self.caches[file_descriptor] = data
-			return
-
 		if data:
 
-			# check if there's any cached data we can use
-			# for this file descriptor
-			if file_descriptor in self.caches:
-				data = self.caches[file_descriptor] + data
-				del self.caches[file_descriptor]
+			split_data = data.split('\r\n\r\n')
+			data_is_complete = len(split_data) > 0 and split_data[-1] == ''
 			
-			rp = RequestParser(data)
-			resp = rp.get_appropriate_response()
+			for piece in split_data[:-1]:
+				piece += '\r\n\r\n'
+				# check if there's any cached data we can use
+				# for this file descriptor
+				if file_descriptor in self.caches:
+					piece = self.caches[file_descriptor] + piece
+					del self.caches[file_descriptor]
+				
+				rp = RequestParser(piece)
+				resp = rp.get_appropriate_response()
 
-			# send all the HTTP headers
-			self.clients[file_descriptor].send(str(resp))
+				# send all the HTTP headers
+				self.clients[file_descriptor].send(str(resp))
 
-			# send the file that was requested
-			if resp.method == 'GET':
-				self.clients[file_descriptor].send(resp.content)
-		# else:
-		# 	print('do I ever get called?')
-		# 	self.poller.unregister(file_descriptor)
-		# 	self.clients[file_descriptor].close()
-		# 	del self.clients[file_descriptor]
+				# send the file that was requested
+				if resp.method == 'GET':
+					self.clients[file_descriptor].send(resp.content)
+
+			# not a complete HTTP request
+			if split_data[-1] != '':
+			#if not data.endswith('\r\n\r\n'):
+				# if data == '':
+					# self._shutdown_socket(file_descriptor)
+				if file_descriptor in self.caches:
+					self.caches[file_descriptor] += split_data[-1]
+				else:
+					self.caches[file_descriptor] = split_data[-1]
+				split_data = split_data[0:-1]
 
 	def _shutdown_socket(self, file_descriptor):
 		del self.socket_timing[file_descriptor]
