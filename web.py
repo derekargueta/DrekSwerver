@@ -19,7 +19,7 @@ class Main(object):
 
 	def parse_arguments(self):
 		parser = argparse.ArgumentParser()
-		parser.add_argument('-p', '--port', type=int, action='store', help='port the server will bind to', default=8080)
+		parser.add_argument('-p', '--port', type=int, action='store', help='port the server will bind to', default=8000)
 		parser.add_argument('-d', '--debug', action='store_true', help='turn on debugging')
 		self.args = parser.parse_args()
 
@@ -36,7 +36,7 @@ if __name__ == '__main__':
 	settings.HOSTS = tmp_settings['hosts']
 	settings.MEDIA = tmp_settings['media']
 	settings.TIMEOUT = tmp_settings['parameters']['timeout']
-	
+
 	m = Main()
 	try:
 		m.run()
