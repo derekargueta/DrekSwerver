@@ -28,7 +28,7 @@ class RequestParser(object):
 			from http_parser.pyparser import HttpParser
 
 		p = HttpParser()
-		nparsed = p.execute(self.content, len(self.content))
+		nparsed = p.execute(self.content.encode('utf-8'), len(self.content))
 
 		if not p.is_headers_complete():
 			return HttpResponseBadRequest(content_f=BAD_REQUEST_HTML)
@@ -55,10 +55,10 @@ class RequestParser(object):
 			if 'Range' in p.get_headers():
 				return HttpResponsePartialContent(content_f=full_path, h_range=p.get_headers()['Range'])	
 			return HttpResponse(content_f=full_path)
-		except IOError as (errno, strerror):
-			if errno == 13:
+		except IOError as err:
+			if err.errno == 13:
 				return HttpResponseForbidden(content_f=FORBIDDEN_HTML)
-			elif errno == 2:
+			elif err.errno == 2:
 				return HttpResponseNotFound(content_f=NOT_FOUND_HTML)
 
 		return HttpResponseServerError(content_f=SERVER_ERROR_HTML)

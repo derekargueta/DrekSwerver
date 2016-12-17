@@ -38,10 +38,10 @@ class Server(object):
 			self.server.bind((self.host, self.port))
 			self.server.listen(5)
 			self.server.setblocking(0)
-		except socket.error, (value, message):
+		except socket.error as err:
 			if self.server:
 				self.server.close()
-			print('Could not open socket: %s' % message)
+			print('Could not open socket: %s' % err)
 			sys.exit(1)
 
 	def _check_timeout(self):
@@ -52,7 +52,7 @@ class Server(object):
 		"""
 		bad = []  # we can't mod the dictionary while iterating, so keep track of
 				  # sockets to kill in this `bad` list
-		for k, v in self.socket_timing.iteritems():
+		for k, v in self.socket_timing.items():
 			current_time = datetime.now()
 			if int((current_time-v).total_seconds()) > int(settings.TIMEOUT):
 				# socket timeout, kill it
@@ -103,9 +103,9 @@ class Server(object):
 		while True:
 			try:
 				client, address = self.server.accept()
-			except socket.error, (value, message):
+			except socket.error as err:
 				# if socket blocks b/c no clients are available, then return
-				if value == errno.EAGAIN or errno.EWOULDBLOCK:
+				if err == errno.EAGAIN or errno.EWOULDBLOCK:
 					return
 				print(traceback.format_exc())
 				sys.exit()
@@ -119,16 +119,16 @@ class Server(object):
 	def handle_client(self, file_descriptor):
 		try:
 			data = self.clients[file_descriptor].recv(self.size)
-		except socket.error, (value, msg):
+		except socket.error as err:
 			# if no data is available, on to the next client
-			if value == errno.EAGAIN or errno.EWOULDBLOCK:
+			if err == errno.EAGAIN or errno.EWOULDBLOCK:
 				return
 			print(traceback.format_exc())
 			sys.exit()
 
 		if data:
 
-			split_data = data.split('\r\n\r\n')
+			split_data = data.decode('utf-8').split('\r\n\r\n')
 			data_is_complete = len(split_data) > 0 and split_data[-1] == ''
 			
 			for piece in split_data[:-1]:
@@ -143,11 +143,11 @@ class Server(object):
 				resp = rp.get_appropriate_response()
 
 				# send all the HTTP headers
-				self.clients[file_descriptor].send(str(resp))
+				self.clients[file_descriptor].send(str(resp).encode('utf-8'))
 
 				# send the file that was requested
 				if resp.method == 'GET':
-					self.clients[file_descriptor].send(resp.content)
+					self.clients[file_descriptor].send(resp.content.encode('utf-8'))
 
 			# not a complete HTTP request
 			if split_data[-1] != '':

@@ -3,7 +3,9 @@
 apt-get update
 
 # install python
-apt-get install python-dev python-pip -q -y
-pip install -U pip
-pip install http-parser
+apt-get install python-dev python3-pip -q -y
+pip3 install -U pip
+pip3 install -r requirements.txt
+
+cd /vagrant
 

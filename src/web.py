@@ -25,8 +25,7 @@ class Main(object):
 
 	def run(self):
 		debug.debug = self.args.debug
-		s = Server(self.args.port)
-		s.run()
+		Server(self.args.port).run()
 
 
 if __name__ == '__main__':
