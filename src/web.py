@@ -24,6 +24,7 @@ class Main(object):
 		self.args = parser.parse_args()
 
 	def run(self):
+		print('Server starting on port {0}'.format(self.args.port))
 		debug.debug = self.args.debug
 		Server(self.args.port).run()
 
