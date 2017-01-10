@@ -17,13 +17,13 @@ class Main(object):
 	def __init__(self):
 		self.parse_arguments()
 
-	def parse_arguments(self):
+	def parse_arguments(self) -> None:
 		parser = argparse.ArgumentParser()
 		parser.add_argument('-p', '--port', type=int, action='store', help='port the server will bind to', default=8000)
 		parser.add_argument('-d', '--debug', action='store_true', help='turn on debugging')
 		self.args = parser.parse_args()
 
-	def run(self):
+	def run(self) -> None:
 		print('Server starting on port {0}'.format(self.args.port))
 		debug.debug = self.args.debug
 		Server(self.args.port).run()
