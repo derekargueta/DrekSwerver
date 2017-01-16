@@ -8,6 +8,7 @@ from time import mktime
 import settings
 from http_consts import STATUS_MSG_MAP
 import os
+import hashlib
 
 
 def file_is_binary(filepath):
@@ -47,6 +48,10 @@ class HttpResponse(object):
 		self.content_length = len(self.content)
 		self.last_modified = None
 		self.method = 'GET'
+		m = hashlib.sha1()
+		hash_str = content_f + str(os.path.getmtime(content_f))
+		m.update(hash_str.encode('utf-8'))
+		self.hash = m.hexdigest()[:10]
 
 	def __str__(self):
 		''' Produces the HTTP headers as a continuous string with each header on a 
@@ -55,6 +60,7 @@ class HttpResponse(object):
 		protocol_string = 'HTTP/1.1 %i %s' % (self.status_code, STATUS_MSG_MAP[self.status_code])
 		server_string = 'Server: %s' % self.server
 		date_string = 'Date: %s' % self.date
+		etag_string = 'ETag: %s' % self.hash
 		content_type_string = 'Content-Type: %s' % self.content_type
 		content_length_string = 'Content-Length: %i' % self.content_length
 
@@ -62,6 +68,7 @@ class HttpResponse(object):
 		main_str += protocol_string + '\r\n'
 		main_str += server_string + '\r\n'
 		main_str += date_string + '\r\n'
+		main_str += etag_string + '\r\n'
 		main_str += content_type_string + '\r\n'
 		main_str += content_length_string + '\r\n'
 
