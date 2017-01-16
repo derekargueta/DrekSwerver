@@ -147,7 +147,7 @@ class Server(object):
 				self.clients[file_descriptor].send(str(resp).encode('utf-8'))
 
 				# send the file that was requested
-				if resp.method == 'GET':
+				if resp.status_code != 304 and resp.method == 'GET':
 					self._handle_GET(file_descriptor, resp)
 
 			# not a complete HTTP request

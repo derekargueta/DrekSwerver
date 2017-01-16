@@ -11,7 +11,7 @@ import os
 import hashlib
 
 
-def file_is_binary(filepath):
+def file_is_binary(filepath: str) -> bool:
 	# we're going to treat HTML and TXT as the defacto non-binary file types but
 	# there should be a more robust way to do this.
 	txt_file_types = ['txt', 'html']
@@ -19,41 +19,50 @@ def file_is_binary(filepath):
 	return extension not in txt_file_types
 
 
+def etag_for_file(filepath: str):
+	m = hashlib.sha1()
+	hash_str = filepath + str(os.path.getmtime(filepath))
+	m.update(hash_str.encode('utf-8'))
+	return m.hexdigest()[:14]
+
+
 class HttpResponse(object):
 
 	status_code = 200
 
 	def __init__(self, status=None, content_f='pages/index.html', method='GET', h_range=None):
-		now = datetime.now()
-		stamp = mktime(now.timetuple())
-
-		print('{0} - Serving {1}'.format(now, content_f))
-
 		if status is not None:
 			self.status_code = status
 		self.server = 'SwagSwerver'
-		self.date = format_date_time(stamp)
+		self.date = self._get_date_header_value()
+		print('{0} - Serving {1}'.format(self.date, content_f))
 		self.content_type = settings.MEDIA[content_f.split('.')[-1]]
-		f_mode = 'r'
-		if file_is_binary(content_f):
-			f_mode += 'b'
-		with open(content_f, f_mode) as f:
-			if self.status_code == 206:
-				spl_range = h_range.replace('bytes=', '').split('-')
-				start = int(spl_range[0])
-				end = int(spl_range[1])
-				self.content = f.read()[start:end+1]
-			else:
-				self.content = f.read()
-		self.content_length = len(self.content)
-		self.last_modified = None
-		self.method = 'GET'
-		m = hashlib.sha1()
-		hash_str = content_f + str(os.path.getmtime(content_f))
-		m.update(hash_str.encode('utf-8'))
-		self.hash = m.hexdigest()[:10]
 
-	def __str__(self):
+		if self.status_code != 304:
+			f_mode = 'r'
+			if file_is_binary(content_f):
+				f_mode += 'b'
+			with open(content_f, f_mode) as f:
+				if self.status_code == 206:
+					spl_range = h_range.replace('bytes=', '').split('-')
+					start = int(spl_range[0])
+					end = int(spl_range[1])
+					self.content = f.read()[start:end+1]
+				else:
+					self.content = f.read()
+			self.content_length = len(self.content)
+		else:
+			self.content_length = 0
+		self.last_modified = None		# TODO: impl
+		self.method = 'GET'
+		self.hash = etag_for_file(content_f)
+
+	def _get_date_header_value(self):
+		now = datetime.now()
+		stamp = mktime(now.timetuple())
+		return format_date_time(stamp)
+
+	def __str__(self) -> str:
 		''' Produces the HTTP headers as a continuous string with each header on a 
 				new line.
 		'''
@@ -78,7 +87,6 @@ class HttpResponse(object):
 
 class HttpResponsePartialContent(HttpResponse):
 	status_code = 206
-
 
 class HttpResponseBadRequest(HttpResponse):
 	status_code = 400

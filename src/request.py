@@ -50,6 +50,11 @@ class RequestParser(object):
 		try:
 			full_path = base_filepath + req_file
 			open(full_path)
+			
+			# check if modified
+			if 'If-None-Match' in p.get_headers() and p.get_headers()['If-None-Match'] == etag_for_file(full_path):
+				return HttpResponse(status=304, content_f=full_path)
+			
 			if p.get_method() == 'HEAD':
 				return HttpResponse(content_f=full_path, method='HEAD')
 			if 'Range' in p.get_headers():
