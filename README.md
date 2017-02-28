@@ -9,7 +9,10 @@ Features:
 - `Range` header support
 - `Etag` support
 
-TODO:
+### Example output
+<img src="screenshots/stdout.png" width="600">
+
+### TODO:
 - [ ] request proxying
 - [ ] support `Last-Modified` and `If-Modified-Since`
 - [ ] support basic compression algorithms and `Content-Encoding` header
